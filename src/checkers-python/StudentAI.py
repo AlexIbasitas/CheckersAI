@@ -2,6 +2,11 @@ from random import randint
 from BoardClasses import Move
 from BoardClasses import Board
 import sys
+
+### TO REMOVE ###
+import os
+#################
+
 #The following part should be completed by students.
 #Students can modify anything except the class name and exisiting functions and varibles.
 
@@ -36,6 +41,24 @@ import sys
 # White pieces are studentAI (positive)
 # Black pieces are opps (negative)
 
+# cd into Tools, then: python3 AI_Runner.py 8 8 3 l ./Sample_AIs/Random_AI/main.py ../src/checkers-python/main.py
+# DOES NOT WORK:
+# python3 AI_Runner.py 8 8 3 l ../src/checkers-python/main.py ./Sample_AIs/Random_AI/main.py 
+# 
+
+# python3 AI_Runner.py 8 8 3 l '~/CheckersAI/Tools/Sample_AIs/Random_AI/main.py' '~/CheckersAI/src/checkers-python/main.py'
+# python3 AI_Runner.py 8 8 3 l '~/CheckersAI/src/checkers-python/main.py' '~/CheckersAI/Tools/Sample_AIs/Random_AI/main.py' 
+
+# 11/3 TODO
+# Optimize the evaluation function to determine board score
+# Add pruning
+# 
+# if type(turn) == int:
+#  if turn == 1:
+#     turn = 'B'
+#  elif turn == 2:
+#     turn = 'W'
+
 class StudentAI():
 
     def __init__(self,col,row,p):
@@ -46,17 +69,27 @@ class StudentAI():
         self.board.initialize_game()
         self.color = ''
         self.opponent = {1:2, 2:1}
-        self.color = 2
+        self.color = 2 #init as white, 'W'
+        self.count_white_kings = 0
+        self.count_black_kings = 0
+
+        #TODO: REMOVE
+        #DEBUG: write moves to file
+            #TODO: remove
+        self.fd = os.open("moves.txt", os.O_RDWR | os.O_CREAT)
 
     def get_move(self,move):
-        DEPTH = 3
-        if len(move) != 0:
-            self.board.make_move(move,self.opponent[self.color])
-        else:
-            self.color = 1
-        score, move = self.minimax(move, DEPTH, False)
-        print("FINAL MOVE CHOSEN: ", move, "COLOR: ", self.color)
-        self.board.make_move(move,self.color)
+        DEPTH = 4
+        # isMaxPlayer = None
+        if len(move) != 0:   # Not Our Move
+            self.board.make_move(move,self.opponent[self.color]) #swap color if we have no moves
+            # isMaxPlayer = True 
+        else:                # Our Move
+            self.color = 1 #swap color to 'B'
+            # isMaxPlayer = False
+        score, move = self.minimax(move, DEPTH, self.color)
+        
+        self.board.make_move(move, self.color)
         return move
     
     # def get_move(self,move):
@@ -88,48 +121,61 @@ class StudentAI():
     
 
     
-    def evaluate_board_score(self, board):
+    def evaluate_board_score(self):
         '''
         returns an int evaluating the score of the board
         TODO: Add adjustments to score for King pieces
         '''
-        board_score = self.board.white_count - self.board.black_count
+        color_dict = {1: 'B', 2: 'W'}
 
+        for row in self.board.board:
+            for checker in row:
+                if checker.is_king and checker.color == 'B': # BLACK
+                    self.count_black_kings += 1
+                if checker.is_king and checker.color == 'W': # WHITE
+                    self.count_white_kings += 1
+
+        board_score = 0
+        if color_dict[self.color] == 'W':
+            board_score = self.board.white_count - self.board.black_count + ((0.5 * self.count_white_kings) - (0.5 * self.count_black_kings))
+        if color_dict[self.color] == 'B':
+            board_score = self.board.black_count - self.board.white_count + + ((0.5 * self.count_black_kings) - (0.5 * self.count_white_kings))
+        self.count_white_kings = self.count_black_kings = 0
         return board_score
 
-    def minimax(self, pos, depth, isMaxPlayer):
+    def minimax(self, pos, depth, passed_color):
         '''
         returns 2 Objects: Score of the most optimal move, the most optimal move
-        TODO: parentMove is sus, check later
         '''
-        turn = None
-        if isMaxPlayer: turn = 'W'
-        else: turn = 'B'
-    
+       
+        if passed_color == self.color: isMaxPlayer = True
+        else: isMaxPlayer = False
+        
+        color_dict = {1: 'B', 2: 'W'}
         # Base Case 
-        if depth == 0 or self.board.is_win(turn):
-            # Move object is initialized like this:
-            # Move(self, [(0,0),(2,2),(0,4)])
-            # Move(self, [original, next position, next position...])
-            return self.evaluate_board_score(self.board), pos
+        if depth == 0 or self.board.is_win(color_dict[passed_color]): # 'B' or 'W'
+            #DEBUG: write moves to file
+            #TODO: remove
+            # line = str.encode(str(pos) + "\n")
+            # os.write(self.fd, line)
+            return self.evaluate_board_score(), pos
         
         nextMove = None
         if isMaxPlayer:
             maxScore = -sys.maxsize
             # get_all_possible_moves() returns [Move(), Move(), Move()]
-            for possible_moves in self.board.get_all_possible_moves('W'):
+            for possible_moves in self.board.get_all_possible_moves(color_dict[passed_color]):
                 for move in possible_moves:
-                    if (self.board.is_valid_move(move[0][0], move[0][1], move[1][0], move[1][1], 'W')):
-                        curScore = self.minimax(move, depth-1, False)[0] # current evaluation score only
-                        maxScore = max(maxScore, curScore)
-                        if maxScore == curScore: nextMove = move
+                    curScore = self.minimax(move, depth-1, self.color)[0] # current evaluation score only
+                    maxScore = max(maxScore, curScore)
+                    if maxScore == curScore: nextMove = move
             return maxScore, nextMove
                        
         else:
             minScore = sys.maxsize
-            for possible_moves in self.board.get_all_possible_moves('B'):
+            for possible_moves in self.board.get_all_possible_moves(color_dict[passed_color]):
                 for move in possible_moves:
-                    curScore = self.minimax(move, depth-1, True)[0]
+                    curScore = self.minimax(move, depth-1, self.opponent[self.color])[0]
                     minScore = min(minScore, curScore)
                     if minScore == curScore: nextMove = move
 
@@ -138,13 +184,11 @@ class StudentAI():
 
 
 
-
-
-
 class boardStateNode():
     eval_score = 0.0
     def __init__(self,board):
-        self.eval_score = evaluateBoard(board)
+        # self.eval_score = evaluateBoard(board)
+        pass
     
     def getEvalScore(self, board):
         return self.eval_score

@@ -35,9 +35,11 @@ class Move:
         This class enables the move object to be made from a str
         @param s: string that describes the class. Eg '(0,0)-(2,2)-(0,4)'
         """
+        print(s)
         if (s == '-1'):
             return cls([])
         else:
+            
             sequencelist = list(map(lambda x:eval(x),s.split('-')))
             return cls(sequencelist)
 
