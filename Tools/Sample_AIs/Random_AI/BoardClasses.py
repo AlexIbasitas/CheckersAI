@@ -10,6 +10,7 @@ We are following the javadoc docstring format which is:
 
 import copy
 import re
+import os
 from Move import Move
 class InvalidMoveError(Exception):
     pass
