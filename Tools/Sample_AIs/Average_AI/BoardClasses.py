@@ -10,6 +10,7 @@ We are following the javadoc docstring format which is:
 
 import copy
 import re
+import os
 from Move import Move
 class InvalidMoveError(Exception):
     pass
@@ -55,6 +56,7 @@ class Board:
         self.white_count = 0
 
 
+
     def initialize_game(self):
         """
         Intializes game. Adds the white checkers and black checkers to the board based on the board variables (M,N,P)
@@ -94,7 +96,7 @@ class Board:
         """
         Makes Move on the board
         @param move: Move object provided by the StudentAI, Uses this parameter to make the move on the board
-        @param turn: this parameter tracks the current turn. either player 1 (white) or player 2(black)
+        @param turn: this parameter tracks the current turn. either player 1 (black) or player 2 (white)
         @return:
         @raise InvalidMoveError: raises this objection if the move provided isn't valid on the current board
         """
@@ -150,12 +152,16 @@ class Board:
                         temp_saved_move[2] = True
                     self.board[target[0]][target[1]].become_king()
                     #self.saved_move[2] = True
+                    if not is_start_checker_king:
+                        break
 
                 elif (turn == 'W' and target[0] == 0):# and not self.board[target[0]][target[1]].is_king):
                     if not is_start_checker_king:
                         temp_saved_move[2] = True
                     self.board[target[0]][target[1]].become_king()
                      #self.saved_move[2] = True
+                    if not is_start_checker_king:
+                        break
                 else:
                     temp_saved_move[2] = False #self.saved_move[2] = False
 
@@ -167,7 +173,9 @@ class Board:
                     # recover failed moves
                     self.board[failed_position[0]][failed_position[1]] = Checker.Checker(".", [failed_position[0],failed_position[1]])
                 self.board[ultimate_start[0]][ultimate_start[1]] = Checker.Checker(turn, [ultimate_start[0],ultimate_start[1]])
-                raise InvalidMoveError
+
+
+                raise InvalidMoveError 
 
         temp_saved_move[0] = copy.deepcopy(move) #self.saved_move[0] = copy.deepcopy(move)
         temp_saved_move[1] = saved_enemy_position #self.saved_move[1] = saved_enemy_position
@@ -408,7 +416,6 @@ class Board:
                     self.white_count += 1
                 elif self.board[i][j].color == "B":
                     self.black_count += 1
-
 
 
 

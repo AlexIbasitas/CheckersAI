@@ -3,6 +3,7 @@ from BoardClasses import Move
 from BoardClasses import Board
 import sys
 
+
 ### TO REMOVE ###
 import os
 #################
@@ -46,7 +47,8 @@ import os
 # python3 AI_Runner.py 8 8 3 l ../src/checkers-python/main.py ./Sample_AIs/Random_AI/main.py 
 # 
 
-# python3 AI_Runner.py 8 8 3 l '~/CheckersAI/Tools/Sample_AIs/Random_AI/main.py' '~/CheckersAI/src/checkers-python/main.py'
+# 
+
 # python3 AI_Runner.py 8 8 3 l '~/CheckersAI/src/checkers-python/main.py' '~/CheckersAI/Tools/Sample_AIs/Random_AI/main.py' 
 
 # 11/3 TODO
@@ -73,9 +75,12 @@ class StudentAI():
         self.count_white_kings = 0
         self.count_black_kings = 0
 
+
+        self.move_count = 0
         #TODO: REMOVE
         #DEBUG: write moves to file
-            #TODO: remove
+        #TODO: remove
+        open('moves.txt', 'w').close()
         self.fd = os.open("moves.txt", os.O_RDWR | os.O_CREAT)
 
     def get_move(self,move):
@@ -87,37 +92,15 @@ class StudentAI():
         else:                # Our Move
             self.color = 1 #swap color to 'B'
             # isMaxPlayer = False
-        score, move = self.minimax(move, DEPTH, self.color)
-        
+        score, move = self.ab_pruning(move, DEPTH, -sys.maxsize, sys.maxsize, self.color)
+        # score, move = self.minimax(move, DEPTH, self.color)
         self.board.make_move(move, self.color)
+
+        self.move_count += 1
+
         return move
     
-    # def get_move(self,move):
-    #     if move.seq:
-    #         # if move.seq is not an empty list
-    #         self.board.make_move(move,self.opponent[self.color])
-    #     else:
-    #         self.color = 1
-    #     moves = self.board.get_all_possible_moves(self.color)
-    #     while True:
-    #         try:
-    #             for i,checker_moves in enumerate(moves):
-    #                 print(i,':[',end="")
-    #                 for j, move in enumerate(checker_moves):
-    #                     print(j,":",move,end=", ")
-    #                 print("]")
-    #             index,inner_index = map(lambda x: int(x), input("Select Move {int} {int}: ").split()) # input is from console is handled here.
-    #             res_move = moves[index][inner_index]
-    #         except KeyboardInterrupt:
-    #             raise KeyboardInterrupt
-    #         except:
-    #             print('invalid move')
-    #             continue
-    #         else:
-    #             break
-    #     self.board.make_move(res_move, self.color)
-    #     return res_move
-    
+
     
 
     
@@ -128,87 +111,209 @@ class StudentAI():
         '''
         color_dict = {1: 'B', 2: 'W'}
 
-        for row in self.board.board:
-            for checker in row:
-                if checker.is_king and checker.color == 'B': # BLACK
-                    self.count_black_kings += 1
-                if checker.is_king and checker.color == 'W': # WHITE
-                    self.count_white_kings += 1
-
         board_score = 0
-        if color_dict[self.color] == 'W':
-            board_score = self.board.white_count - self.board.black_count + ((0.5 * self.count_white_kings) - (0.5 * self.count_black_kings))
-        if color_dict[self.color] == 'B':
-            board_score = self.board.black_count - self.board.white_count + + ((0.5 * self.count_black_kings) - (0.5 * self.count_white_kings))
-        self.count_white_kings = self.count_black_kings = 0
+        
+        pieces_difference_score = self.piece_difference()
+        current_king_score = self.count_kings()
+        back_protectors_moved_score = self.back_protectors_moved()
+    
+        board_score = pieces_difference_score + (0.5*current_king_score) + (0.25*back_protectors_moved_score)
+        
         return board_score
+    
+    def piece_difference(self):
+        color_dict = {1: 'B', 2: 'W'}
+        pieces_difference = 0
+        if color_dict[self.color] == 'W':
+            pieces_difference = self.board.white_count - self.board.black_count
+        if color_dict[self.color] == 'B':
+            pieces_difference = self.board.black_count - self.board.white_count
+        return pieces_difference
+        
 
-    def minimax(self, pos, depth, passed_color):
+    def count_kings(self):
+        color_dict = {1: 'B', 2: 'W'}
+        count_white_kings = count_black_kings = 0
+        for row in self.board.board:
+                for checker in row:
+                    if checker.is_king and checker.color == 'B': # BLACK
+                        count_black_kings += 1
+                    if checker.is_king and checker.color == 'W': # WHITE
+                        count_white_kings += 1
+        if color_dict[self.color] == 'B':
+            return count_black_kings - count_white_kings
+        else:
+            return count_white_kings - count_black_kings
+
+
+
+    def back_protectors_moved(self):
+        color_dict = {1: 'B', 2: 'W'}
+        board_protector_score = 0
+        if (self.move_count <= 12):
+            if color_dict[self.color] == 'B':
+                if self.board.board[0][1] == '.':
+                    board_protector_score -= 1
+                if self.board.board[0][5] == '.':
+                    board_protector_score -= 1
+                
+            if color_dict[self.color] == 'W':
+                if self.board.board[7][2] == '.':
+                        board_protector_score -= 1
+                if self.board.board[7][6] == '.':
+                        board_protector_score -= 1
+        return board_protector_score
+
+    def ab_pruning(self, move, depth, alpha, beta, passed_color_num):
         '''
         returns 2 Objects: Score of the most optimal move, the most optimal move
         '''
-       
-        if passed_color == self.color: isMaxPlayer = True
+        
+
+        if passed_color_num == self.color: isMaxPlayer = True
         else: isMaxPlayer = False
         
         color_dict = {1: 'B', 2: 'W'}
         # Base Case 
-        if depth == 0 or self.board.is_win(color_dict[passed_color]): # 'B' or 'W'
-            #DEBUG: write moves to file
-            #TODO: remove
-            # line = str.encode(str(pos) + "\n")
-            # os.write(self.fd, line)
-            return self.evaluate_board_score(), pos
+        if depth == 0 or self.board.get_all_possible_moves(color_dict[passed_color_num]) == 0: # 'B' or 'W'  
+            score = self.evaluate_board_score()
+            return score, move
+            # return self.evaluate_board_score(passed_color_num), move
         
         nextMove = None
-        if isMaxPlayer:
+        if isMaxPlayer: 
+            line = str.encode("MAXplayer reached, param number: " + str(passed_color_num) + ", color dict output: " + color_dict[passed_color_num] + "\n")
+            os.write(self.fd, line)
             maxScore = -sys.maxsize
-            # get_all_possible_moves() returns [Move(), Move(), Move()]
-            for possible_moves in self.board.get_all_possible_moves(color_dict[passed_color]):
+            for possible_moves in self.board.get_all_possible_moves(color_dict[self.color]):
                 for move in possible_moves:
-                    curScore = self.minimax(move, depth-1, self.color)[0] # current evaluation score only
-                    maxScore = max(maxScore, curScore)
-                    if maxScore == curScore: nextMove = move
+                    # turn 1 is B, 2 is W
+                    # MAKE MOVE HERE
+                    self.board.make_move(move, self.color)
+                    line = str.encode("FROM MAXPLAYER MOVES LOOP, OPPONENT COLOR NUM: " + str(self.opponent[self.color]) + ", OPPONENT COLOR STR: " + color_dict[self.opponent[self.color]] + "\n")
+                    os.write(self.fd, line)
+                    curScore = self.ab_pruning(move, depth-1, alpha, beta, self.opponent[self.color])[0] 
+                    #Subtree traversed, try next move
+                    # self.board.undo()  # undos current leaf, then breaks out
+                    
+                    self.board.undo() 
+                    
+                    maxScore = max(maxScore, curScore)   # thinking move maxScore above undo, won't hurt runtime
+                    if maxScore == curScore: 
+                        nextMove = move
+                    # Prune
+                    alpha = max(alpha, maxScore)
+                    if beta <= alpha:
+                        break
+
+                    
+                    
+
+
             return maxScore, nextMove
                        
         else:
+            # TODO: REMOVE
+            line = str.encode("minplayer reached, param number: " + str(passed_color_num) + " color dict output: " + color_dict[passed_color_num] + "\n")
+            os.write(self.fd, line)
+
+            line = str.encode("minplayer reached, param number: " + str(passed_color_num) + ", GET ALL POSSIBLE OPPONENT COLOR PARAM: " + str(self.board.get_all_possible_moves(color_dict[self.opponent[self.color]])) + "\n")
+            os.write(self.fd, line)
+
+            
             minScore = sys.maxsize
-            for possible_moves in self.board.get_all_possible_moves(color_dict[passed_color]):
+            for possible_moves in self.board.get_all_possible_moves(color_dict[self.opponent[self.color]]):  # [Piece 1: [Move, Move, Move], Piece 2: [Move, Move, Move]]
                 for move in possible_moves:
-                    curScore = self.minimax(move, depth-1, self.opponent[self.color])[0]
+                    line = str.encode("FROM minplayer MOVES LOOP, OPPONENT COLOR NUM: " + str(self.opponent[self.color]) + ", OPPONENT COLOR STR: " + color_dict[self.opponent[self.color]] + "\n")
+                    os.write(self.fd, line)
+                    # MAKE MOVE HERE
+                    self.board.make_move(move, self.opponent[self.color])
+                    
+                    curScore = self.ab_pruning(move, depth-1, alpha, beta, self.color)[0] # pass new board along
+
+                    # Subtree Traversed, try the next move
+                    self.board.undo()
+
                     minScore = min(minScore, curScore)
-                    if minScore == curScore: nextMove = move
+                    if minScore == curScore: 
+                        nextMove = move
+                    # Pruning
+                    beta = min(beta, minScore)
+                    if beta <= alpha:
+                        break
+                    
+                   
+                    
 
             return minScore, nextMove
 
 
 
 
-class boardStateNode():
-    eval_score = 0.0
-    def __init__(self,board):
-        # self.eval_score = evaluateBoard(board)
-        pass
-    
-    def getEvalScore(self, board):
-        return self.eval_score
-        
-
-class SearchTree():
-    def __init__(self):
-        root = boardStateNode(board) #pass it the initial board
 
 
 
-# This is the initial get_move function, kept here for reference
-# def get_random_move(self,move):
-#     if len(move) != 0:
-#         self.board.make_move(move,self.opponent[self.color])
-#     else:
-#         self.color = 1
-#     moves = self.board.get_all_possible_moves(self.color)
-#     index = randint(0,len(moves)-1)
-#     inner_index =  randint(0,len(moves[index])-1)
-#     move = moves[index][inner_index]
-#     self.board.make_move(move,self.color)
-#     return move
+
+
+
+    # def minimax(self, move, depth, passed_color):
+    #         '''
+    #         returns 2 Objects: Score of the most optimal move, the most optimal move
+    #         '''
+
+    #         # TODO DEBUG: REMOVE
+    #         line = str.encode("called" + "\n")
+    #         os.write(self.fd, line)
+
+
+    #         if passed_color == self.color: isMaxPlayer = True
+    #         else: isMaxPlayer = False
+            
+    #         color_dict = {1: 'B', 2: 'W'}
+    #         # Base Case 
+    #         if depth == 0 or self.board.get_all_possible_moves(color_dict[passed_color]) == 0: # 'B' or 'W'
+    #             #DEBUG: write moves to file
+    #             #TODO: remove
+    #             # line = str.encode(str(self.evaluate_board_score()) + "\n")
+    #             # os.write(self.fd, line)
+    #             # return 0, move
+    #             return self.evaluate_board_score(), move
+            
+    #         nextMove = None
+    #         if isMaxPlayer:
+    #             maxScore = -sys.maxsize
+    #             for possible_moves in self.board.get_all_possible_moves(color_dict[passed_color]):
+    #                 for move in possible_moves:
+    #                     # turn 1 is B, 2 is W
+    #                     # MAKE MOVE HERE
+    #                     self.board.make_move(move, passed_color)
+    #                     curScore = self.minimax(move, depth-1, self.color)[0] # current evaluation score only
+
+    #                     # Prune here?
+
+    #                     #Subtree traversed, try next move
+    #                     self.board.undo() 
+
+    #                     maxScore = max(maxScore, curScore)   # thinking move maxScore above undo, won't hurt runtime
+    #                     if maxScore == curScore: 
+    #                         nextMove = move
+    #             return maxScore, nextMove
+                        
+    #         else:
+    #             minScore = sys.maxsize
+    #             for possible_moves in self.board.get_all_possible_moves(color_dict[passed_color]):  # [Piece 1: [Move, Move, Move], Piece 2: [Move, Move, Move]]
+    #                 for move in possible_moves:
+                        
+    #                     # MAKE MOVE HERE
+    #                     self.board.make_move(move, passed_color)
+                        
+    #                     curScore = self.minimax(move, depth-1, self.opponent[self.color])[0] # pass new board along
+
+    #                     # Subtree Traversed, try the next move
+    #                     self.board.undo()
+                        
+    #                     minScore = min(minScore, curScore)
+    #                     if minScore == curScore: 
+    #                         nextMove = move
+
+    #             return minScore, nextMove

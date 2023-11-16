@@ -10,6 +10,7 @@ We are following the javadoc docstring format which is:
 
 import copy
 import re
+import os
 from Move import Move
 class InvalidMoveError(Exception):
     pass
@@ -53,6 +54,7 @@ class Board:
 
         self.black_count = 0
         self.white_count = 0
+
 
 
     def initialize_game(self):
@@ -171,7 +173,9 @@ class Board:
                     # recover failed moves
                     self.board[failed_position[0]][failed_position[1]] = Checker.Checker(".", [failed_position[0],failed_position[1]])
                 self.board[ultimate_start[0]][ultimate_start[1]] = Checker.Checker(turn, [ultimate_start[0],ultimate_start[1]])
-                raise InvalidMoveError
+
+
+                raise InvalidMoveError 
 
         temp_saved_move[0] = copy.deepcopy(move) #self.saved_move[0] = copy.deepcopy(move)
         temp_saved_move[1] = saved_enemy_position #self.saved_move[1] = saved_enemy_position
