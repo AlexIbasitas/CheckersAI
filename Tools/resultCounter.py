@@ -5,7 +5,7 @@ def run_game():
     # Modify the command as needed
     command = [
         'python3', 'AI_Runner.py', '8', '8', '3', 'l',
-        '~/CheckersAI/Tools/Sample_AIs/Average_AI/main.py',
+        '~/CheckersAI/Tools/Sample_AIs/Poor_AI/main.py',
         '~/CheckersAI/src/checkers-python/main.py'
     ]
 
