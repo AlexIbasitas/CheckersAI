@@ -256,64 +256,42 @@ class StudentAI():
 
 
 
-    # def minimax(self, move, depth, passed_color):
-    #         '''
-    #         returns 2 Objects: Score of the most optimal move, the most optimal move
-    #         '''
+# class Node:
+#   def __init__(self, m, p): # move is from parent to node
+#     self.move, self.parent, self.children = m, p, []
+#     self.wins, self.visits  = 0, 0
 
-    #         # TODO DEBUG: REMOVE
-    #         line = str.encode("called" + "\n")
-    #         os.write(self.fd, line)
+#   def expand_node(self, state):
+#     if not terminal(state): # STUDENT COMMENT: we can use has no more moves left for this
+#       for each non-isomorphic legal move m of state:
+#         nc = Node(m, self) # new child node # since its not a DFS, we might just have to use deepcopy
+#         self.children.append(nc)
 
+#   def update(self, r):
+#     self.visits += 1
+#     if r==win: #STUDENT COMMENT: use is_win == color for this one
+#       self.wins += 1
 
-    #         if passed_color == self.color: isMaxPlayer = True
-    #         else: isMaxPlayer = False
-            
-    #         color_dict = {1: 'B', 2: 'W'}
-    #         # Base Case 
-    #         if depth == 0 or self.board.get_all_possible_moves(color_dict[passed_color]) == 0: # 'B' or 'W'
-    #             #DEBUG: write moves to file
-    #             #TODO: remove
-    #             # line = str.encode(str(self.evaluate_board_score()) + "\n")
-    #             # os.write(self.fd, line)
-    #             # return 0, move
-    #             return self.evaluate_board_score(), move
-            
-    #         nextMove = None
-    #         if isMaxPlayer:
-    #             maxScore = -sys.maxsize
-    #             for possible_moves in self.board.get_all_possible_moves(color_dict[passed_color]):
-    #                 for move in possible_moves:
-    #                     # turn 1 is B, 2 is W
-    #                     # MAKE MOVE HERE
-    #                     self.board.make_move(move, passed_color)
-    #                     curScore = self.minimax(move, depth-1, self.color)[0] # current evaluation score only
+#   def is_leaf(self):
+#     return len(self.children)==0
 
-    #                     # Prune here?
+#   def has_parent(self):
+#     return self.parent is not None
 
-    #                     #Subtree traversed, try next move
-    #                     self.board.undo() 
+# def mcts(state):
+#   root_node  = Node(None, None)
+#   while time remains: # STUDENT COMMENT: Time remains means depth for us
+#     n, s = root_node, copy.deepcopy(state)
+#     while not n.is_leaf():    # select leaf
+#       n = tree_policy_child(n)
+#       s.addmove(n.move)
+#     n.expand_node(s)          # expand
+#     n = tree_policy_child(n)
+#     while not terminal(s):    # simulate
+#       s = simulation_policy_child(s)
+#     result = evaluate(s) # STUDENT COMMENT: our heuristic goes here
+#     while n.has_parent():     # propagate
+#       n.update(result)
+#       n = n.parent
 
-    #                     maxScore = max(maxScore, curScore)   # thinking move maxScore above undo, won't hurt runtime
-    #                     if maxScore == curScore: 
-    #                         nextMove = move
-    #             return maxScore, nextMove
-                        
-    #         else:
-    #             minScore = sys.maxsize
-    #             for possible_moves in self.board.get_all_possible_moves(color_dict[passed_color]):  # [Piece 1: [Move, Move, Move], Piece 2: [Move, Move, Move]]
-    #                 for move in possible_moves:
-                        
-    #                     # MAKE MOVE HERE
-    #                     self.board.make_move(move, passed_color)
-                        
-    #                     curScore = self.minimax(move, depth-1, self.opponent[self.color])[0] # pass new board along
-
-    #                     # Subtree Traversed, try the next move
-    #                     self.board.undo()
-                        
-    #                     minScore = min(minScore, curScore)
-    #                     if minScore == curScore: 
-    #                         nextMove = move
-
-    #             return minScore, nextMove
+#     return best_move(tree)
