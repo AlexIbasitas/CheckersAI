@@ -217,11 +217,12 @@ class MoveNode:
 
   def expand_node(self, state):
     if depth == 0: # STUDENT COMMENT: ADD no more moves left for this, figure out how to pass a board
-      for each non-isomorphic legal move m of state: 
-        nc = Node(m, self) # new child node # since its not a DFS, we might just have to use deepcopy
-        self.children.append(nc)
+    #   for each non-isomorphic legal move m of state: # STUDENT COMMENT: use board's get all moves for this
+    #     nc = Node(m, self) # new child node # since its not a DFS, we might just have to use deepcopy
+    #     self.children.append(nc)
+        pass
 
-  def update(self, r):
+  def update(self, r): #what is r?
     self.visits += 1
     if r==win: #STUDENT COMMENT: use is_win == color for this one
       self.wins += 1
@@ -233,17 +234,29 @@ class MoveNode:
     return self.parent is not None
 
 
+def mcts(state): #we will pass this as to make move in main
+  root_node  = Node(None, None)
+  while time remains: #Time remains means depth for us
+    n, s = root_node, copy.deepcopy(state) #do we make the new board HERE?
+    
+    while not n.is_leaf():    # tree policy can be random at first
+      n = tree_policy_child(n)
+      s.addmove(n.move)
 
 
+    n.expand_node(s)          # expand
+    n = tree_policy_child(n) # root keeps moving around until propagate
 
 
+    while not terminal(s):    # simulate
+      s = simulation_policy_child(s) #also called rollout, gfg has this as random at first
+    result = evaluate(s) # our eval heuristic goes here
 
+    while n.has_parent():     # propagate
+      n.update(result) #this loop can be kept nearly the same
+      n = n.parent
 
-
-
-
-
-
+    return best_move(tree)
 
 
 
