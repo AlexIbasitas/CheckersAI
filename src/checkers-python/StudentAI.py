@@ -102,8 +102,7 @@ class StudentAI():
     
 
     
-
-    
+##### EVALUTATION SECTION ######
     def evaluate_board_score(self):
         '''
         returns an int evaluating the score of the board
@@ -164,97 +163,12 @@ class StudentAI():
                         board_protector_score -= 1
         return board_protector_score
 
-    def ab_pruning(self, move, depth, alpha, beta, passed_color_num):
-        '''
-        returns 2 Objects: Score of the most optimal move, the most optimal move
-        '''
-        
-
-        if passed_color_num == self.color: isMaxPlayer = True
-        else: isMaxPlayer = False
-        
-        color_dict = {1: 'B', 2: 'W'}
-        # Base Case 
-        if depth == 0 or self.board.get_all_possible_moves(color_dict[passed_color_num]) == 0: # 'B' or 'W'  
-            score = self.evaluate_board_score()
-            return score, move
-            # return self.evaluate_board_score(passed_color_num), move
-        
-        nextMove = None
-        if isMaxPlayer: 
-            line = str.encode("MAXplayer reached, param number: " + str(passed_color_num) + ", color dict output: " + color_dict[passed_color_num] + "\n")
-            os.write(self.fd, line)
-            maxScore = -sys.maxsize
-            for possible_moves in self.board.get_all_possible_moves(color_dict[self.color]):
-                for move in possible_moves:
-                    # turn 1 is B, 2 is W
-                    # MAKE MOVE HERE
-                    self.board.make_move(move, self.color)
-                    line = str.encode("FROM MAXPLAYER MOVES LOOP, OPPONENT COLOR NUM: " + str(self.opponent[self.color]) + ", OPPONENT COLOR STR: " + color_dict[self.opponent[self.color]] + "\n")
-                    os.write(self.fd, line)
-                    curScore = self.ab_pruning(move, depth-1, alpha, beta, self.opponent[self.color])[0] 
-                    #Subtree traversed, try next move
-                    # self.board.undo()  # undos current leaf, then breaks out
-                    
-                    self.board.undo() 
-                    
-                    maxScore = max(maxScore, curScore)   # thinking move maxScore above undo, won't hurt runtime
-                    if maxScore == curScore: 
-                        nextMove = move
-                    # Prune
-                    alpha = max(alpha, maxScore)
-                    if beta <= alpha:
-                        break
-
-                    
-                    
+####### EVALUATION SECTION END ###########
 
 
-            return maxScore, nextMove
-                       
-        else:
-            # TODO: REMOVE
-            line = str.encode("minplayer reached, param number: " + str(passed_color_num) + " color dict output: " + color_dict[passed_color_num] + "\n")
-            os.write(self.fd, line)
+######### MCTS SECTION START ###########
 
-            line = str.encode("minplayer reached, param number: " + str(passed_color_num) + ", GET ALL POSSIBLE OPPONENT COLOR PARAM: " + str(self.board.get_all_possible_moves(color_dict[self.opponent[self.color]])) + "\n")
-            os.write(self.fd, line)
-
-            
-            minScore = sys.maxsize
-            for possible_moves in self.board.get_all_possible_moves(color_dict[self.opponent[self.color]]):  # [Piece 1: [Move, Move, Move], Piece 2: [Move, Move, Move]]
-                for move in possible_moves:
-                    line = str.encode("FROM minplayer MOVES LOOP, OPPONENT COLOR NUM: " + str(self.opponent[self.color]) + ", OPPONENT COLOR STR: " + color_dict[self.opponent[self.color]] + "\n")
-                    os.write(self.fd, line)
-                    # MAKE MOVE HERE
-                    self.board.make_move(move, self.opponent[self.color])
-                    
-                    curScore = self.ab_pruning(move, depth-1, alpha, beta, self.color)[0] # pass new board along
-
-                    # Subtree Traversed, try the next move
-                    self.board.undo()
-
-                    minScore = min(minScore, curScore)
-                    if minScore == curScore: 
-                        nextMove = move
-                    # Pruning
-                    beta = min(beta, minScore)
-                    if beta <= alpha:
-                        break
-                    
-                   
-                    
-
-            return minScore, nextMove
-
-
-
-
-
-
-
-
-
+##### PSEUDOCODE #####
 
 # class Node:
 #   def __init__(self, m, p): # move is from parent to node
@@ -263,7 +177,7 @@ class StudentAI():
 
 #   def expand_node(self, state):
 #     if not terminal(state): # STUDENT COMMENT: we can use has no more moves left for this
-#       for each non-isomorphic legal move m of state:
+#       for each non-isomorphic legal move m of state: ## WTF DOES THIS MEAN? I hope it just means for every legal move
 #         nc = Node(m, self) # new child node # since its not a DFS, we might just have to use deepcopy
 #         self.children.append(nc)
 
@@ -288,10 +202,139 @@ class StudentAI():
 #     n.expand_node(s)          # expand
 #     n = tree_policy_child(n)
 #     while not terminal(s):    # simulate
-#       s = simulation_policy_child(s)
+#       s = simulation_policy_child(s) # STUDENT COMMENT: also called rollout, gfg has this as random at first
 #     result = evaluate(s) # STUDENT COMMENT: our heuristic goes here
 #     while n.has_parent():     # propagate
-#       n.update(result)
+#       n.update(result) #this loop can be kept nearly the same
 #       n = n.parent
 
 #     return best_move(tree)
+
+class MoveNode:
+  def __init__(self, m, p, depth): # move is from parent to node
+    self.move, self.parent, self.children = m, p, []
+    self.wins, self.visits  = 0, 0
+
+  def expand_node(self, state):
+    if depth == 0: # STUDENT COMMENT: ADD no more moves left for this, figure out how to pass a board
+      for each non-isomorphic legal move m of state: 
+        nc = Node(m, self) # new child node # since its not a DFS, we might just have to use deepcopy
+        self.children.append(nc)
+
+  def update(self, r):
+    self.visits += 1
+    if r==win: #STUDENT COMMENT: use is_win == color for this one
+      self.wins += 1
+
+  def is_leaf(self):
+    return len(self.children)==0
+
+  def has_parent(self):
+    return self.parent is not None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####### AB PRUNING  ALGORITHM ########
+    # def ab_pruning(self, move, depth, alpha, beta, passed_color_num):
+    #     '''
+    #     returns 2 Objects: Score of the most optimal move, the most optimal move
+    #     '''
+        
+
+    #     if passed_color_num == self.color: isMaxPlayer = True
+    #     else: isMaxPlayer = False
+        
+    #     color_dict = {1: 'B', 2: 'W'}
+    #     # Base Case 
+    #     if depth == 0 or self.board.get_all_possible_moves(color_dict[passed_color_num]) == 0: # 'B' or 'W'  
+    #         score = self.evaluate_board_score()
+    #         return score, move
+    #         # return self.evaluate_board_score(passed_color_num), move
+        
+    #     nextMove = None
+    #     if isMaxPlayer: 
+    #         line = str.encode("MAXplayer reached, param number: " + str(passed_color_num) + ", color dict output: " + color_dict[passed_color_num] + "\n")
+    #         os.write(self.fd, line)
+    #         maxScore = -sys.maxsize
+    #         for possible_moves in self.board.get_all_possible_moves(color_dict[self.color]):
+    #             for move in possible_moves:
+    #                 # turn 1 is B, 2 is W
+    #                 # MAKE MOVE HERE
+    #                 self.board.make_move(move, self.color)
+    #                 line = str.encode("FROM MAXPLAYER MOVES LOOP, OPPONENT COLOR NUM: " + str(self.opponent[self.color]) + ", OPPONENT COLOR STR: " + color_dict[self.opponent[self.color]] + "\n")
+    #                 os.write(self.fd, line)
+    #                 curScore = self.ab_pruning(move, depth-1, alpha, beta, self.opponent[self.color])[0] 
+    #                 #Subtree traversed, try next move
+    #                 # self.board.undo()  # undos current leaf, then breaks out
+                    
+    #                 self.board.undo() 
+                    
+    #                 maxScore = max(maxScore, curScore)   # thinking move maxScore above undo, won't hurt runtime
+    #                 if maxScore == curScore: 
+    #                     nextMove = move
+    #                 # Prune
+    #                 alpha = max(alpha, maxScore)
+    #                 if beta <= alpha:
+    #                     break
+    #         return maxScore, nextMove
+                       
+    #     else:
+    #         # TODO: REMOVE
+    #         line = str.encode("minplayer reached, param number: " + str(passed_color_num) + " color dict output: " + color_dict[passed_color_num] + "\n")
+    #         os.write(self.fd, line)
+
+    #         line = str.encode("minplayer reached, param number: " + str(passed_color_num) + ", GET ALL POSSIBLE OPPONENT COLOR PARAM: " + str(self.board.get_all_possible_moves(color_dict[self.opponent[self.color]])) + "\n")
+    #         os.write(self.fd, line)
+
+            
+    #         minScore = sys.maxsize
+    #         for possible_moves in self.board.get_all_possible_moves(color_dict[self.opponent[self.color]]):  # [Piece 1: [Move, Move, Move], Piece 2: [Move, Move, Move]]
+    #             for move in possible_moves:
+    #                 line = str.encode("FROM minplayer MOVES LOOP, OPPONENT COLOR NUM: " + str(self.opponent[self.color]) + ", OPPONENT COLOR STR: " + color_dict[self.opponent[self.color]] + "\n")
+    #                 os.write(self.fd, line)
+    #                 # MAKE MOVE HERE
+    #                 self.board.make_move(move, self.opponent[self.color])
+                    
+    #                 curScore = self.ab_pruning(move, depth-1, alpha, beta, self.color)[0] # pass new board along
+
+    #                 # Subtree Traversed, try the next move
+    #                 self.board.undo()
+
+    #                 minScore = min(minScore, curScore)
+    #                 if minScore == curScore: 
+    #                     nextMove = move
+    #                 # Pruning
+    #                 beta = min(beta, minScore)
+    #                 if beta <= alpha:
+    #                     break
+                    
+    #         return minScore, nextMove
+
+
+####### AB PRUNING ALGORITHM END ############
+
+
+
+
+
+
+
+
+
