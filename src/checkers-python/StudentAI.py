@@ -2,8 +2,10 @@ from random import randint
 from BoardClasses import Move
 from BoardClasses import Board
 import sys
-
-
+from copy import deepcopy
+import time
+from collections import defaultdict
+import math
 ### TO REMOVE ###
 import os
 #################
@@ -49,17 +51,10 @@ import os
 
 # 
 
-# python3 AI_Runner.py 8 8 3 l '~/CheckersAI/src/checkers-python/main.py' '~/CheckersAI/Tools/Sample_AIs/Random_AI/main.py' 
-
-# 11/3 TODO
-# Optimize the evaluation function to determine board score
-# Add pruning
 # 
-# if type(turn) == int:
-#  if turn == 1:
-#     turn = 'B'
-#  elif turn == 2:
-#     turn = 'W'
+
+# 12/4 TODO
+# Expansion Issue
 
 class StudentAI():
 
@@ -74,94 +69,300 @@ class StudentAI():
         self.color = 2 #init as white, 'W'
         self.count_white_kings = 0
         self.count_black_kings = 0
-
+        
 
         self.move_count = 0
+        self.MonteCarloTreeSearch = MonteCarloTreeSearch(Node(None, self.color, self.board, None, self.opponent))
+        # self.total_search_time = 299
+        self.total_search_time = 3
+
+
         #TODO: REMOVE
         #DEBUG: write moves to file
         #TODO: remove
+        # open('moves.txt', 'w').close()
+        # self.fd = os.open("moves.txt", os.O_RDWR | os.O_CREAT)
+
+        
+    def get_move(self, move):
+        startTime = time.time()
+
+        if len(move) != 0: #given code
+            self.updateBoard(move, self.opponent[self.color])
+        else:
+            #only time len(move) == 0 is if we are going first, black always goes first
+            self.color = 1 #given code
+            
+            # Initialize MCTS
+            self.MonteCarloTreeSearch.root = Node(None, self.color, self.board, None, self.opponent)
+            
+            # make a random first move
+            randomFirstMove = self.MonteCarloTreeSearch.random_move(self.board, self.color) # self.color or self.opponent[self.color]?
+            self.updateBoard(randomFirstMove, self.color)
+            return randomFirstMove
+
+        # Monte Carlo Tree Search
+        bestMove = self.MonteCarloTreeSearch.search(self.total_search_time)
+        self.updateBoard(bestMove, self.color)
+
+        # self.move_count -= 1
+
+        # update with time passed
+        self.total_search_time -= (time.time() - startTime)
+        return bestMove
+
+    # Double Check Unsure 
+    def updateBoard(self, move, color):  
+
+        self.board.make_move(move, color)
+
+        for m,c in self.MonteCarloTreeSearch.root.children.items():
+            if str(move) == str(m) and c != None:
+                self.MonteCarloTreeSearch.root.parent = None
+                self.MonteCarloTreeSearch.root = c
+
+                return
+            
+        self.MonteCarloTreeSearch.root = Node(None, self.color, self.board, None, self.opponent)
+
+
+    # def get_move(self,move):
+    #     DEPTH = 4
+    #     # isMaxPlayer = None
+    #     if len(move) != 0:   # Not Our Move
+    #         self.board.make_move(move,self.opponent[self.color]) #swap color if we have no moves
+    #         # isMaxPlayer = True 
+    #     else:                # Our Move
+    #         self.color = 1 #swap color to 'B'
+    #         # isMaxPlayer = False
+    #     score, move = self.ab_pruning(move, DEPTH, -sys.maxsize, sys.maxsize, self.color)
+    #     # score, move = self.minimax(move, DEPTH, self.color)
+    #     self.board.make_move(move, self.color)
+
+    #     self.move_count += 1
+
+    #     return move
+    
+
+class Node():
+    def __init__(self, parent, color, board, move, opponent):
+        self.parent = parent
+        self.color = color
+        self.board = deepcopy(board)
+        self.parent_win = 0
+        self.opponent = opponent
+
+        if move:
+            self.board.make_move(move, self.opponent[self.color])
+
+        self.num_visits = 1
+        self.ucb1 = 0
+        self.wins = 0
+        
+        self.children = {}  # {move from paren : where move goes to}
+        moves = self.board.get_all_possible_moves(self.color)
+
+        if not self.board.is_win(self.opponent[self.color]):
+            for r in range(len(moves)):
+                for c in range(len(moves[r])):
+                    self.children[moves[r][c]] = None
+                
+
+    def backpropagate(self, parent_win):
+        '''
+        Backpropogate until the root node, when no more parent, all nodes backpropogated and return 
+        '''
+        self.num_visits += 1
+
+        if not self.parent:
+            return
+        else:
+            self.parent.backpropagate(-1 * parent_win)
+            
+            if parent_win == 1:
+                self.parent_win += 1
+            elif parent_win == 0:
+                self.parent_win += .75
+            else:
+                self.parent_win += 0.5
+
+            self.ucb1 = (self.parent_win / self.num_visits) + (1.5 * math.sqrt(math.log(self.parent.num_visits) / self.num_visits))
+            
+
+
+
+class MonteCarloTreeSearch(): 
+    def __init__(self, root):
+        self.root = root
+        self.opponent = {1:2, 2:1}
+
+
+        #FOR DEBUG
         open('moves.txt', 'w').close()
         self.fd = os.open("moves.txt", os.O_RDWR | os.O_CREAT)
+          
+    def search(self, search_time):
+        # Searches the tree with MCTS until time is up
 
-    def get_move(self,move):
-        DEPTH = 4
-        # isMaxPlayer = None
-        if len(move) != 0:   # Not Our Move
-            self.board.make_move(move,self.opponent[self.color]) #swap color if we have no moves
-            # isMaxPlayer = True 
-        else:                # Our Move
-            self.color = 1 #swap color to 'B'
-            # isMaxPlayer = False
-        score, move = self.ab_pruning(move, DEPTH, -sys.maxsize, sys.maxsize, self.color)
-        # score, move = self.minimax(move, DEPTH, self.color)
-        self.board.make_move(move, self.color)
-
-        self.move_count += 1
-
-        return move
-    
-
-    
-##### EVALUTATION SECTION ######
-    def evaluate_board_score(self):
-        '''
-        returns an int evaluating the score of the board
-        TODO: Add adjustments to score for King pieces
-        '''
-        color_dict = {1: 'B', 2: 'W'}
-
-        board_score = 0
-        
-        pieces_difference_score = self.piece_difference()
-        current_king_score = self.count_kings()
-        back_protectors_moved_score = self.back_protectors_moved()
-    
-        board_score = pieces_difference_score + (0.5*current_king_score) + (0.25*back_protectors_moved_score)
-        
-        return board_score
-    
-    def piece_difference(self):
-        color_dict = {1: 'B', 2: 'W'}
-        pieces_difference = 0
-        if color_dict[self.color] == 'W':
-            pieces_difference = self.board.white_count - self.board.black_count
-        if color_dict[self.color] == 'B':
-            pieces_difference = self.board.black_count - self.board.white_count
-        return pieces_difference
-        
-
-    def count_kings(self):
-        color_dict = {1: 'B', 2: 'W'}
-        count_white_kings = count_black_kings = 0
-        for row in self.board.board:
-                for checker in row:
-                    if checker.is_king and checker.color == 'B': # BLACK
-                        count_black_kings += 1
-                    if checker.is_king and checker.color == 'W': # WHITE
-                        count_white_kings += 1
-        if color_dict[self.color] == 'B':
-            return count_black_kings - count_white_kings
-        else:
-            return count_white_kings - count_black_kings
-
-
-
-    def back_protectors_moved(self):
-        color_dict = {1: 'B', 2: 'W'}
-        board_protector_score = 0
-        if (self.move_count <= 12):
-            if color_dict[self.color] == 'B':
-                if self.board.board[0][1] == '.':
-                    board_protector_score -= 1
-                if self.board.board[0][5] == '.':
-                    board_protector_score -= 1
+        time_limit = time.time() + search_time
                 
-            if color_dict[self.color] == 'W':
-                if self.board.board[7][2] == '.':
-                        board_protector_score -= 1
-                if self.board.board[7][6] == '.':
-                        board_protector_score -= 1
-        return board_protector_score
+        while time.time() < time_limit:
+            # expansion
+            selected_node = self.expandNode(self.root)
+            
+
+            #simulate/rollout
+            new_board = deepcopy(selected_node.board)
+            new_board_color = selected_node.color
+            win_value = new_board.is_win(self.opponent[new_board_color])
+            
+            
+            parent_win = self.simulate_games(new_board, new_board_color, win_value) # passed new_board?
+
+            
+            # backpropagate
+            if win_value == self.opponent[selected_node.color]:
+                parent_win = 1
+            elif win_value == selected_node.color:
+                parent_win = -1
+            else:
+                parent_win = 0
+            
+            # if parent_win == None:
+            #     print("Parent Win was not set properly")
+        
+            # update values in tree
+            selected_node.backpropagate(parent_win)
+
+        return self.selectBestMove()
+    
+    def random_move(self, board, color):
+        #return a random move for this board and color
+        moves = board.get_all_possible_moves(color)
+        row_index = randint(0, len(moves) - 1)
+        col_index = randint(0, len(moves[row_index]) - 1)
+        return moves[row_index][col_index]
+
+        
+
+    def simulate_games(self, new_board, new_board_color, win_value):
+        while win_value == 0: # 0 means still moves left
+            #make the move
+            move_to_make = self.random_move(new_board, new_board_color)
+            new_board.make_move(move_to_make, new_board_color)
+
+            #update win value
+            win_value = new_board.is_win(new_board_color)
+
+            #swap colors
+            new_board_color = self.opponent[new_board_color]
+        return win_value
+
+
+
+    def expandNode(self, curNode):       
+        if not curNode.children:
+            return curNode
+        elif None not in curNode.children.values():
+            children = sorted(curNode.children.values(), key = lambda x: x.ucb1, reverse=True)
+            # children.sort(key = lambda x: x.ucb1, reverse=True)
+            return self.expandNode(children[0])
+        else:
+            for m,c in curNode.children.items():
+                if c == None:
+                    curNode.children[m] = Node(curNode, self.opponent[curNode.color], curNode.board, m, self.opponent)
+                    return curNode.children[m]
+
+
+    def selectBestMove(self):   
+        # print(self.root.children.items())
+        # moveToChild = self.root.children.items()
+        # copyDict = copy.copy(moveToChild)
+        # for k,v in copyDict:
+        #     if v == None:
+        #         del moveToChild[k]
+        os.write(self.fd, ("BEFORE" + str(self.root.children.items()) + "\n").encode('utf-8'))
+
+        if len(self.root.children.keys()) == 1: # forced moves get made instantly
+            return list(self.root.children.keys())[0]
+
+        moveToChild = {key: value for key, value in self.root.children.items() if value is not None}
+        os.write(self.fd, ("AFTER" + str(moveToChild)  + "\n" ).encode('utf-8'))
+        moveToChild = sorted(moveToChild.items(), key=lambda x : x[1].num_visits, reverse=True)
+        # moveToChild.sort(key=lambda x : x[1].num_visits, reverse=True)
+        return moveToChild[0][0]
+
+
+
+
+
+
+
+
+
+
+
+
+##### EVALUTATION SECTION ######
+    # def evaluate_board_score(self):
+    #     '''
+    #     returns an int evaluating the score of the board
+    #     TODO: Add adjustments to score for King pieces
+    #     '''
+    #     color_dict = {1: 'B', 2: 'W'}
+
+    #     board_score = 0
+        
+    #     pieces_difference_score = self.piece_difference()
+    #     current_king_score = self.count_kings()
+    #     back_protectors_moved_score = self.back_protectors_moved()
+    
+    #     board_score = pieces_difference_score + (0.5*current_king_score) + (0.25*back_protectors_moved_score)
+        
+    #     return board_score
+    
+    # def piece_difference(self):
+    #     color_dict = {1: 'B', 2: 'W'}
+    #     pieces_difference = 0
+    #     if color_dict[self.color] == 'W':
+    #         pieces_difference = self.board.white_count - self.board.black_count
+    #     if color_dict[self.color] == 'B':
+    #         pieces_difference = self.board.black_count - self.board.white_count
+    #     return pieces_difference
+        
+
+    # def count_kings(self):
+    #     color_dict = {1: 'B', 2: 'W'}
+    #     count_white_kings = count_black_kings = 0
+    #     for row in self.board.board:
+    #             for checker in row:
+    #                 if checker.is_king and checker.color == 'B': # BLACK
+    #                     count_black_kings += 1
+    #                 if checker.is_king and checker.color == 'W': # WHITE
+    #                     count_white_kings += 1
+    #     if color_dict[self.color] == 'B':
+    #         return count_black_kings - count_white_kings
+    #     else:
+    #         return count_white_kings - count_black_kings
+
+
+
+    # def back_protectors_moved(self):
+    #     color_dict = {1: 'B', 2: 'W'}
+    #     board_protector_score = 0
+    #     if (self.move_count <= 12):
+    #         if color_dict[self.color] == 'B':
+    #             if self.board.board[0][1] == '.':
+    #                 board_protector_score -= 1
+    #             if self.board.board[0][5] == '.':
+    #                 board_protector_score -= 1
+                
+    #         if color_dict[self.color] == 'W':
+    #             if self.board.board[7][2] == '.':
+    #                     board_protector_score -= 1
+    #             if self.board.board[7][6] == '.':
+    #                     board_protector_score -= 1
+    #     return board_protector_score
 
 ####### EVALUATION SECTION END ###########
 
@@ -210,53 +411,9 @@ class StudentAI():
 
 #     return best_move(tree)
 
-class MoveNode:
-  def __init__(self, m, p, depth): # move is from parent to node
-    self.move, self.parent, self.children = m, p, []
-    self.wins, self.visits  = 0, 0
-
-  def expand_node(self, state):
-    if depth == 0: # STUDENT COMMENT: ADD no more moves left for this, figure out how to pass a board
-    #   for each non-isomorphic legal move m of state: # STUDENT COMMENT: use board's get all moves for this
-    #     nc = Node(m, self) # new child node # since its not a DFS, we might just have to use deepcopy
-    #     self.children.append(nc)
-        pass
-
-  def update(self, r): #what is r?
-    self.visits += 1
-    if r==win: #STUDENT COMMENT: use is_win == color for this one
-      self.wins += 1
-
-  def is_leaf(self):
-    return len(self.children)==0
-
-  def has_parent(self):
-    return self.parent is not None
 
 
-def mcts(state): #we will pass this as to make move in main
-  root_node  = Node(None, None)
-  while time remains: #Time remains means depth for us
-    n, s = root_node, copy.deepcopy(state) #do we make the new board HERE?
-    
-    while not n.is_leaf():    # tree policy can be random at first
-      n = tree_policy_child(n)
-      s.addmove(n.move)
 
-
-    n.expand_node(s)          # expand
-    n = tree_policy_child(n) # root keeps moving around until propagate
-
-
-    while not terminal(s):    # simulate
-      s = simulation_policy_child(s) #also called rollout, gfg has this as random at first
-    result = evaluate(s) # our eval heuristic goes here
-
-    while n.has_parent():     # propagate
-      n.update(result) #this loop can be kept nearly the same
-      n = n.parent
-
-    return best_move(tree)
 
 
 
