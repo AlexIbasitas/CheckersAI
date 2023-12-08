@@ -1,5 +1,6 @@
 import subprocess
 import datetime
+import time
 
 def run_game():
     # Modify the command as needed
@@ -29,23 +30,25 @@ def run_game():
 
 def main():
     print("Time of program START:", datetime.datetime.now())
-    num_games = 100
+    num_games = 3
     player1_wins = 0
     player2_wins = 0
     ties = 0
     crashed_games = 0
     unrecognized_games = 0
     print("Command is as follows: ")
-    command = [
-    'python3', 'AI_Runner.py', '8', '8', '3', 'l', '~/CheckersAI/src/checkers-python/main.py', '~/CheckersAI/Tools/Sample_AIs/Poor_AI/main.py']
+    command = ['python3', 'AI_Runner.py', '8', '8', '3', 'l', '~/CheckersAI/src/checkers-python/main.py', '~/CheckersAI/Tools/Sample_AIs/Poor_AI/main.py']
+    # command = ['python3', 'AI_Runner.py', '8', '8', '3', 'l', '~/CheckersAI/src/checkers-python/main.py', '~/CheckersAI/Tools/Sample_AIs/Average_AI/main.py']
+
+    
     
     print(command)
     with open("inmain.txt", 'w') as fd: 
         pass
 
     for i in range(num_games):
+        print('Game ' + str(i+1) + ' Start: ' + str(datetime.datetime.now()))
         winner = run_game()
-        print(i)
         if winner == 'player 1':
             player1_wins += 1
         elif winner == 'player 2':
@@ -56,6 +59,9 @@ def main():
             crashed_games += 1
         elif winner == "unrecognized":
             unrecognized_games += 1
+        print("Game " + str(i+1) + " End: " + str(datetime.datetime.now()))
+
+        
 
 
     print("Player 1 Wins: {} ({:.2f}%)".format(player1_wins, (player1_wins / num_games) * 100))

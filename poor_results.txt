@@ -1,0 +1,1 @@
+]633;C]633;E;for i in {1..2}\x3b do python3 ~/CheckersAI/Tools/AI_Runner.py 8 8 3 l ~/CheckersAI/src/checkers-python/main.py ~/CheckersAI/Tools/Sample_AIs/Poor_AI/main.py\x3b done > poor_results.txt;ce63fd2a-9241-4d72-8c63-4e1256ef93d8

@@ -6,7 +6,6 @@ from copy import deepcopy
 import time
 from collections import defaultdict
 import math
-from operator import attrgetter 
 ### TO REMOVE ###
 import os
 #################
@@ -50,7 +49,8 @@ import os
 # python3 AI_Runner.py 8 8 3 l ../src/checkers-python/main.py ./Sample_AIs/Random_AI/main.py 
 # 
 
-# 
+# Player 1 is actually black and player 2 is white. The original is_win method is correct, and some of the code comments were wrong.
+
 
 # 
 
@@ -72,7 +72,6 @@ class StudentAI():
         self.count_black_kings = 0
         
 
-        self.move_count = 0
         self.MonteCarloTreeSearch = MonteCarloTreeSearch(Node(None, self.color, self.board, None, self.opponent))
 
 
@@ -84,7 +83,8 @@ class StudentAI():
 
         
     def get_move(self, move):
-
+        global move_count
+        
         if len(move) != 0: #given code
             self.updateBoard(move, self.opponent[self.color])
         else:
@@ -95,7 +95,7 @@ class StudentAI():
             self.MonteCarloTreeSearch.root = Node(None, self.color, self.board, None, self.opponent)
             
             # make a random first move
-            self.move_count += 1
+            move_count += 1
 
 
             randomFirstMove = self.MonteCarloTreeSearch.random_move(self.board, self.color) # self.color or self.opponent[self.color]?
@@ -103,7 +103,7 @@ class StudentAI():
             return randomFirstMove
         
 
-        self.move_count += 1
+        move_count += 1
 
 
         possible_moves = self.board.get_all_possible_moves(self.color)
@@ -114,13 +114,13 @@ class StudentAI():
         # Monte Carlo Tree Search
         single_move_time = 1
         if move_count <= 10:
-            single_move_time = 2
-        elif move_count <=20:
-            single_move_time = 3
-        elif move_count <= 30:
-            single_move_time = 4
+            single_move_time = 6
+        elif move_count <=25:
+            single_move_time = 7
+        elif move_count <= 50:
+            single_move_time = 8
         else:
-            single_move_time = 0.5
+            single_move_time = 2
         
         bestMove = self.MonteCarloTreeSearch.search(single_move_time) # 3 for now
         self.updateBoard(bestMove, self.color)
@@ -207,15 +207,16 @@ class Node():
                 self.parent_win += 0.5
 
             self.ucb1 = (self.parent_win / self.num_visits) + (1.5 * math.sqrt(math.log(self.parent.num_visits) / self.num_visits))
+            # + self.RAVE_bonus(self)
             # os.write(self.fd, f'evaluation_score = {self.piece_difference_score() + (0.5*self.current_king_score()) + (0.25*self.back_protectors_moved_score())}\n'.encode('utf-8'))
             # os.write(self.fd, f'self.ucb1 = {self.ucb1}\n'.encode('utf-8'))
 
     
-    # def update_RAVE(node, selected_child):
+    # def update_RAVE(self, node, selected_child):
     #     node.rave_visits += 1
     #     node.rave_total_score += selected_child.total_score
 
-    # def RAVE_bonus(node):
+    # def RAVE_bonus(self,node):
     #     beta = 0.01  # Adjust as needed
     #     if node.rave_visits == 0:
     #         return 0
@@ -247,7 +248,6 @@ class MonteCarloTreeSearch():
             # os.write(self.fd, f'selected_node.children = {selected_node.children}\n'.encode('utf-8'))
 
             
-
             #simulate/rollout
             new_board = deepcopy(selected_node.board)
             new_board_color = selected_node.color
