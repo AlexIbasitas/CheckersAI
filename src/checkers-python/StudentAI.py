@@ -6,6 +6,7 @@ from copy import deepcopy
 import time
 from collections import defaultdict
 import math
+from operator import attrgetter 
 ### TO REMOVE ###
 import os
 #################
@@ -55,6 +56,7 @@ import os
 
 # 12/4 TODO
 # Expansion Issue
+move_count = 0
 
 class StudentAI():
 
@@ -64,7 +66,6 @@ class StudentAI():
         self.p = p
         self.board = Board(col,row,p)
         self.board.initialize_game()
-        self.color = ''
         self.opponent = {1:2, 2:1}
         self.color = 2 #init as white, 'W'
         self.count_white_kings = 0
@@ -73,8 +74,6 @@ class StudentAI():
 
         self.move_count = 0
         self.MonteCarloTreeSearch = MonteCarloTreeSearch(Node(None, self.color, self.board, None, self.opponent))
-        # self.total_search_time = 299
-        self.total_search_time = 3
 
 
         #TODO: REMOVE
@@ -85,7 +84,6 @@ class StudentAI():
 
         
     def get_move(self, move):
-        startTime = time.time()
 
         if len(move) != 0: #given code
             self.updateBoard(move, self.opponent[self.color])
@@ -97,18 +95,38 @@ class StudentAI():
             self.MonteCarloTreeSearch.root = Node(None, self.color, self.board, None, self.opponent)
             
             # make a random first move
+            self.move_count += 1
+
+
             randomFirstMove = self.MonteCarloTreeSearch.random_move(self.board, self.color) # self.color or self.opponent[self.color]?
             self.updateBoard(randomFirstMove, self.color)
             return randomFirstMove
+        
+
+        self.move_count += 1
+
+
+        possible_moves = self.board.get_all_possible_moves(self.color)
+        if len(possible_moves) == 1 and possible_moves[0]:
+            self.updateBoard(possible_moves[0][0], self.color)
+            return possible_moves[0][0]
 
         # Monte Carlo Tree Search
-        bestMove = self.MonteCarloTreeSearch.search(self.total_search_time)
+        single_move_time = 1
+        if move_count <= 10:
+            single_move_time = 2
+        elif move_count <=20:
+            single_move_time = 3
+        elif move_count <= 30:
+            single_move_time = 4
+        else:
+            single_move_time = 0.5
+        
+        bestMove = self.MonteCarloTreeSearch.search(single_move_time) # 3 for now
         self.updateBoard(bestMove, self.color)
 
-        # self.move_count -= 1
 
         # update with time passed
-        self.total_search_time -= (time.time() - startTime)
         return bestMove
 
     # Double Check Unsure 
@@ -120,12 +138,13 @@ class StudentAI():
             if str(move) == str(m) and c != None:
                 self.MonteCarloTreeSearch.root.parent = None
                 self.MonteCarloTreeSearch.root = c
-
                 return
             
         self.MonteCarloTreeSearch.root = Node(None, self.color, self.board, None, self.opponent)
 
+    
 
+    
     # def get_move(self,move):
     #     DEPTH = 4
     #     # isMaxPlayer = None
@@ -152,7 +171,7 @@ class Node():
         self.parent_win = 0
         self.opponent = opponent
 
-        if move:
+        if move: 
             self.board.make_move(move, self.opponent[self.color])
 
         self.num_visits = 1
@@ -162,6 +181,7 @@ class Node():
         self.children = {}  # {move from paren : where move goes to}
         moves = self.board.get_all_possible_moves(self.color)
 
+        # game not over yet, children should be populated with None
         if not self.board.is_win(self.opponent[self.color]):
             for r in range(len(moves)):
                 for c in range(len(moves[r])):
@@ -170,7 +190,7 @@ class Node():
 
     def backpropagate(self, parent_win):
         '''
-        Backpropogate until the root node, when no more parent, all nodes backpropogated and return 
+        Backpropagate until the root node, when no more parent, all nodes backpropagated and return 
         '''
         self.num_visits += 1
 
@@ -187,6 +207,19 @@ class Node():
                 self.parent_win += 0.5
 
             self.ucb1 = (self.parent_win / self.num_visits) + (1.5 * math.sqrt(math.log(self.parent.num_visits) / self.num_visits))
+            # os.write(self.fd, f'evaluation_score = {self.piece_difference_score() + (0.5*self.current_king_score()) + (0.25*self.back_protectors_moved_score())}\n'.encode('utf-8'))
+            # os.write(self.fd, f'self.ucb1 = {self.ucb1}\n'.encode('utf-8'))
+
+    
+    # def update_RAVE(node, selected_child):
+    #     node.rave_visits += 1
+    #     node.rave_total_score += selected_child.total_score
+
+    # def RAVE_bonus(node):
+    #     beta = 0.01  # Adjust as needed
+    #     if node.rave_visits == 0:
+    #         return 0
+    #     return beta * math.sqrt(node.rave_visits / (3 * node.visits))
             
 
 
@@ -198,17 +231,21 @@ class MonteCarloTreeSearch():
 
 
         #FOR DEBUG
-        open('moves.txt', 'w').close()
-        self.fd = os.open("moves.txt", os.O_RDWR | os.O_CREAT)
+        # open('moves.txt', 'w').close()
+        # self.fd = os.open("moves.txt", os.O_RDWR | os.O_CREAT)
           
     def search(self, search_time):
         # Searches the tree with MCTS until time is up
 
         time_limit = time.time() + search_time
-                
+        # os.write(self.fd, f'time_condition = {time.time() < time_limit}\n'.encode('utf-8'))
         while time.time() < time_limit:
             # expansion
+            
+            # os.write(self.fd, f'self.root = {self.root}\n'.encode('utf-8'))
             selected_node = self.expandNode(self.root)
+            # os.write(self.fd, f'selected_node.children = {selected_node.children}\n'.encode('utf-8'))
+
             
 
             #simulate/rollout
@@ -233,6 +270,8 @@ class MonteCarloTreeSearch():
         
             # update values in tree
             selected_node.backpropagate(parent_win)
+    
+        # os.write(self.fd, f'Right before Best move selection root.children = {self.root.children}\n'.encode('utf-8'))
 
         return self.selectBestMove()
     
@@ -243,7 +282,7 @@ class MonteCarloTreeSearch():
         col_index = randint(0, len(moves[row_index]) - 1)
         return moves[row_index][col_index]
 
-        
+    
 
     def simulate_games(self, new_board, new_board_color, win_value):
         while win_value == 0: # 0 means still moves left
@@ -257,11 +296,16 @@ class MonteCarloTreeSearch():
             #swap colors
             new_board_color = self.opponent[new_board_color]
         return win_value
+    
 
 
-
-    def expandNode(self, curNode):       
+    def expandNode(self, curNode):  
+    # def expandNode(self, node):       
+        '''
+        Should populate the selected nodes list of children
+        '''
         if not curNode.children:
+            # os.write(self.fd, ("REACHED IF:\n" ).encode('utf-8'))
             return curNode
         elif None not in curNode.children.values():
             children = sorted(curNode.children.values(), key = lambda x: x.ucb1, reverse=True)
@@ -273,6 +317,10 @@ class MonteCarloTreeSearch():
                     curNode.children[m] = Node(curNode, self.opponent[curNode.color], curNode.board, m, self.opponent)
                     return curNode.children[m]
 
+        
+        # os.write(self.fd, f'Node after expansion node.children = {node.children}\n'.encode('utf-8'))
+        
+
 
     def selectBestMove(self):   
         # print(self.root.children.items())
@@ -281,16 +329,79 @@ class MonteCarloTreeSearch():
         # for k,v in copyDict:
         #     if v == None:
         #         del moveToChild[k]
-        os.write(self.fd, ("BEFORE" + str(self.root.children.items()) + "\n").encode('utf-8'))
+        # os.write(self.fd, ("BEFORE forced move " + str(self.root.children.items()) + "\n").encode('utf-8'))
 
         if len(self.root.children.keys()) == 1: # forced moves get made instantly
             return list(self.root.children.keys())[0]
+        
+        # moveToChild is {move from parent (coord) : what node object that move points to}
+        # moveToChild = {key: value for key, value in self.root.children.items() if value is not None}
+        moveToChild = {key: value for key, value in self.root.children.items()}
 
-        moveToChild = {key: value for key, value in self.root.children.items() if value is not None}
-        os.write(self.fd, ("AFTER" + str(moveToChild)  + "\n" ).encode('utf-8'))
         moveToChild = sorted(moveToChild.items(), key=lambda x : x[1].num_visits, reverse=True)
-        # moveToChild.sort(key=lambda x : x[1].num_visits, reverse=True)
+
         return moveToChild[0][0]
+    
+    
+    # Evaluation Heuristics
+    def evaluate_board_score(self, board):
+        '''
+        returns an int evaluating the score of the board
+        '''
+        color_dict = {1: 'B', 2: 'W'}
+
+        board_score = 0
+        
+        pieces_difference_score = self.piece_difference(board)
+        current_king_score = self.count_kings(board)
+        # back_protectors_moved_score = self.back_protectors_moved()
+    
+        board_score = pieces_difference_score + (0.5*current_king_score)
+        
+        return board_score
+    
+    def piece_difference(self, board):
+        color_dict = {1: 'B', 2: 'W'}
+        pieces_difference = 0
+        if color_dict[self.color] == 'W':
+            pieces_difference = board.white_count - board.black_count
+        if color_dict[self.color] == 'B':
+            pieces_difference = board.black_count - board.white_count
+        return pieces_difference
+        
+
+    def count_kings(self, board):
+        color_dict = {1: 'B', 2: 'W'}
+        count_white_kings = count_black_kings = 0
+        for row in board:
+                for checker in row:
+                    if checker.is_king and checker.color == 'B': # BLACK
+                        count_black_kings += 1
+                    if checker.is_king and checker.color == 'W': # WHITE
+                        count_white_kings += 1
+        if color_dict[self.color] == 'B':
+            return count_black_kings - count_white_kings
+        else:
+            return count_white_kings - count_black_kings
+
+
+    # TODO: Change to loop through top and bottom rows
+    # def back_protectors_moved(self, board):
+    #     color_dict = {1: 'B', 2: 'W'}
+    #     board_protector_score = 0
+    #     if (move_count <= 12):
+    #         if color_dict[self.color] == 'B':
+    #             if board[0][1] == '.':
+    #                 board_protector_score -= 1
+    #             if board[0][5] == '.':
+    #                 board_protector_score -= 1
+                
+    #         if color_dict[self.color] == 'W':
+    #             if board[7][2] == '.':
+    #                     board_protector_score -= 1
+    #             if board[7][6] == '.':
+    #                     board_protector_score -= 1
+    #     return board_protector_score
 
 
 
