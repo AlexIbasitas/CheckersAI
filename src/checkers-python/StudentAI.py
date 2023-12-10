@@ -323,13 +323,7 @@ class MonteCarloTreeSearch():
 
 
     def selectBestMove(self):   
-        # print(self.root.children.items())
-        # moveToChild = self.root.children.items()
-        # copyDict = copy.copy(moveToChild)
-        # for k,v in copyDict:
-        #     if v == None:
-        #         del moveToChild[k]
-        # os.write(self.fd, ("BEFORE forced move " + str(self.root.children.items()) + "\n").encode('utf-8'))
+
 
         if len(self.root.children.keys()) == 1: # forced moves get made instantly
             return list(self.root.children.keys())[0]
