@@ -114,11 +114,11 @@ class StudentAI():
         # Monte Carlo Tree Search
         single_move_time = 1
         if move_count <= 10:
-            single_move_time = 6
+            single_move_time = 4
         elif move_count <=25:
-            single_move_time = 7
+            single_move_time = 5
         elif move_count <= 50:
-            single_move_time = 8
+            single_move_time = 3
         else:
             single_move_time = 2
         
@@ -145,22 +145,7 @@ class StudentAI():
     
 
     
-    # def get_move(self,move):
-    #     DEPTH = 4
-    #     # isMaxPlayer = None
-    #     if len(move) != 0:   # Not Our Move
-    #         self.board.make_move(move,self.opponent[self.color]) #swap color if we have no moves
-    #         # isMaxPlayer = True 
-    #     else:                # Our Move
-    #         self.color = 1 #swap color to 'B'
-    #         # isMaxPlayer = False
-    #     score, move = self.ab_pruning(move, DEPTH, -sys.maxsize, sys.maxsize, self.color)
-    #     # score, move = self.minimax(move, DEPTH, self.color)
-    #     self.board.make_move(move, self.color)
 
-    #     self.move_count += 1
-
-    #     return move
     
 
 class Node():
@@ -201,12 +186,12 @@ class Node():
             
             if parent_win == 1:
                 self.parent_win += 1
-            elif parent_win == 0:
-                self.parent_win += .75
+            # elif parent_win == 0:
+            #     self.parent_win += .75
             else:
                 self.parent_win += 0.5
 
-            self.ucb1 = (self.parent_win / self.num_visits) + (1.5 * math.sqrt(math.log(self.parent.num_visits) / self.num_visits))
+            self.ucb1 = (self.parent_win / self.num_visits) + (math.sqrt(2) * math.sqrt(math.log(self.parent.num_visits) / self.num_visits))
             # + self.RAVE_bonus(self)
             # os.write(self.fd, f'evaluation_score = {self.piece_difference_score() + (0.5*self.current_king_score()) + (0.25*self.back_protectors_moved_score())}\n'.encode('utf-8'))
             # os.write(self.fd, f'self.ucb1 = {self.ucb1}\n'.encode('utf-8'))
@@ -282,12 +267,25 @@ class MonteCarloTreeSearch():
         col_index = randint(0, len(moves[row_index]) - 1)
         return moves[row_index][col_index]
 
-    
+    def get_smart_move(self, evaluation_board, color):
+        move_score_dict = {}
+        possible_moves = evaluation_board.get_all_possible_moves(color)
+        for piece in possible_moves:
+            for move in piece:
+                #make the move
+                evaluation_board.make_move(move, color)
+
+                #evaluate and undo
+                move_score_dict[move] = self.evaluate_board_score(evaluation_board, color)
+                evaluation_board.undo()
+        return max(move_score_dict, key=move_score_dict.get)
+
 
     def simulate_games(self, new_board, new_board_color, win_value):
         while win_value == 0: # 0 means still moves left
             #make the move
             move_to_make = self.random_move(new_board, new_board_color)
+            # move_to_make = self.get_smart_move(new_board, new_board_color)
             new_board.make_move(move_to_make, new_board_color)
 
             #update win value
@@ -338,7 +336,7 @@ class MonteCarloTreeSearch():
     
     
     # Evaluation Heuristics
-    def evaluate_board_score(self, board):
+    def evaluate_board_score(self, board, color):
         '''
         returns an int evaluating the score of the board
         '''
@@ -346,34 +344,34 @@ class MonteCarloTreeSearch():
 
         board_score = 0
         
-        pieces_difference_score = self.piece_difference(board)
-        current_king_score = self.count_kings(board)
+        pieces_difference_score = self.piece_difference(board,color)
+        current_king_score = self.count_kings(board,color)
         # back_protectors_moved_score = self.back_protectors_moved()
     
         board_score = pieces_difference_score + (0.5*current_king_score)
         
         return board_score
     
-    def piece_difference(self, board):
+    def piece_difference(self, board, color):
         color_dict = {1: 'B', 2: 'W'}
         pieces_difference = 0
-        if color_dict[self.color] == 'W':
+        if color_dict[color] == 'W':
             pieces_difference = board.white_count - board.black_count
-        if color_dict[self.color] == 'B':
+        if color_dict[color] == 'B':
             pieces_difference = board.black_count - board.white_count
         return pieces_difference
         
 
-    def count_kings(self, board):
+    def count_kings(self, board, color):
         color_dict = {1: 'B', 2: 'W'}
         count_white_kings = count_black_kings = 0
-        for row in board:
+        for row in board.board:
                 for checker in row:
                     if checker.is_king and checker.color == 'B': # BLACK
                         count_black_kings += 1
                     if checker.is_king and checker.color == 'W': # WHITE
                         count_white_kings += 1
-        if color_dict[self.color] == 'B':
+        if color_dict[color] == 'B':
             return count_black_kings - count_white_kings
         else:
             return count_white_kings - count_black_kings
